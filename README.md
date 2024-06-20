@@ -2,7 +2,7 @@
 
 Implement Yolov7-segmentation with ONNX
 
-# Download checkpoint here
+# Download checkpoint
 [YoloSeg](https://drive.google.com/file/d/1tT6-jNY4TXD-oWIc2G4lTZC4Ts4lZLLy/view?usp=drive_link)
 
 [YoloDetect](https://drive.google.com/file/d/1lQnROCWapDo3R8htgtg-pIlqVzBKRQGo/view?usp=drive_link)
