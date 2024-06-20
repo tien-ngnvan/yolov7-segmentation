@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
+from src import BaseInference
 from src.util import (
     non_max_suppression,
     process_mask,
@@ -29,7 +30,7 @@ CLASSES = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train',
 ]
 
 
-class YoloSeg:
+class YoloSeg(BaseInference):
     def __init__(self, model_path):
         self.load_model(model_path)
         

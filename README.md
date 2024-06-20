@@ -2,7 +2,13 @@
 
 Implement Yolov7-segmentation with ONNX
 
+# Download checkpoint here
+[YoloSeg](https://drive.google.com/file/d/1tT6-jNY4TXD-oWIc2G4lTZC4Ts4lZLLy/view?usp=drive_link)
 
+[YoloDetect](https://drive.google.com/file/d/1lQnROCWapDo3R8htgtg-pIlqVzBKRQGo/view?usp=drive_link)
+
+# Inference
+1. For Yolo segmentation
 ```python
 import os
 import cv2
@@ -35,4 +41,29 @@ CLASSES = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train',
          'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 
          'hair drier', 'toothbrush']
+```
+
+2. For Yolo Detection
+
+```python
+image = cv2.imread(os.path.join('samples', 'bus.jpg'))
+    
+# load model
+model = DetectBase('weights/yolov7-tiny-v0.onnx')
+
+bboxes, scores, labels, kpts = model.inference(image, det_thres=0.6, get_layer='head') # change the get layer 'body' || 'face' || 'head'
+
+if len(bboxes) > 0:
+    for xyxy, score in zip(bboxes, scores):
+        x1, y1, x2, y2 = xyxy.astype(int)
+        cv2.rectangle(image, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
+        cv2.putText(
+            image,
+            f"{round(score,2)}",
+            (x1, y1 - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6, (0, 255, 0), 2
+        )
+
+cv2.imwrite('output/test.jpg', image)
 ```
