@@ -59,7 +59,7 @@ if len(bboxes) > 0:
         cv2.rectangle(image, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
         cv2.putText(
             image,
-            f"{round(score,2)}",
+            f"{score:.2f}",
             (x1, y1 - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6, (0, 255, 0), 2
