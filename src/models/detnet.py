@@ -25,7 +25,7 @@ class DetectBase(BaseInference):
         self.inp_name = self.model.get_inputs()[0].name
         self.opt1_name = self.model.get_outputs()[0].name
         self.opt2_name = self.model.get_outputs()[1].name
-        self.opt3_name = self.model.get_outputs()[2].name
+        
         _, _, h, w = self.model.get_inputs()[0].shape
         self.model_inpsize = (w, h)
 
@@ -48,7 +48,7 @@ class DetectBase(BaseInference):
         tensor_img, ratio, dwdh = self.preprocess(img, test_size)
         
         # model prediction
-        outputs = self.model.run([self.opt1_name, self.opt2_name, self.opt3_name], {self.inp_name: tensor_img})
+        outputs = self.model.run([self.opt1_name, self.opt2_name], {self.inp_name: tensor_img})
 
         if len(outputs) == 2:
             pred = outputs[1] if get_layer == 'face' else outputs[0]
