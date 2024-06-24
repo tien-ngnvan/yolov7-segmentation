@@ -5,7 +5,7 @@ Implement Yolov7-segmentation with ONNX
 # Download checkpoint
 [YoloSeg](https://drive.google.com/file/d/1tT6-jNY4TXD-oWIc2G4lTZC4Ts4lZLLy/view?usp=drive_link)
 
-[YoloDetect](https://drive.google.com/file/d/1lQnROCWapDo3R8htgtg-pIlqVzBKRQGo/view?usp=drive_link)
+[YoloDetect](https://drive.google.com/file/d/1Pj1im1OSAIdiK63_yF-jI278kdZTGe70/view?usp=drive_link)
 
 # Inference
 1. For Yolo segmentation
@@ -51,7 +51,11 @@ image = cv2.imread(os.path.join('samples', 'bus.jpg'))
 # load model
 model = DetectBase('weights/yolov7-tiny-v0.onnx')
 
-bboxes, scores, labels, kpts = model.inference(image, det_thres=0.6, get_layer='head') # change the get layer 'body' || 'face' || 'head'
+
+# Face & Body: det_thresh = 0.6
+# Head: det_thresh: 0.8
+
+bboxes, scores, labels, kpts = model.inference(image, det_thres=0.6, get_layer='face') # change the get layer 'body' || 'face' || 'head'
 
 if len(bboxes) > 0:
     for xyxy, score in zip(bboxes, scores):
@@ -67,3 +71,4 @@ if len(bboxes) > 0:
 
 cv2.imwrite('output/test.jpg', image)
 ```
+
