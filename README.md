@@ -1,35 +1,64 @@
-# yolov7-segmentation
-
-Implement Yolov7-segmentation with ONNX
+# Selfie
+Several components for processing face tasks such as face parsing, face detection, etc in selfies with ONNXRuntime
 
 # Download checkpoint
 [YoloSeg](https://drive.google.com/file/d/1tT6-jNY4TXD-oWIc2G4lTZC4Ts4lZLLy/view?usp=drive_link)
 
-[YoloDetect-tiny](https://drive.google.com/file/d/1Pj1im1OSAIdiK63_yF-jI278kdZTGe70/view?usp=drive_link)
-
 [YoloDetect-base](https://drive.google.com/file/d/1-8r31t1zUPU7pt6WrzTQ8ONGbpMFPLwK/view?usp=drive_link)
 
-# Inference
-1. For Yolo segmentation
+[Face parsing](https://huggingface.co/jonathandinu/face-parsing/tree/main/onnx)
+
+## 1. Yolo Segmetation and Yolo Detection
 ```python
 import os
 import cv2
-from src.yolo import YoloSeg
+from src.yolo.detnet import YoloDet
+from src.yolo.segnet import YoloSeg
 
-# build model
-model = YoloSeg(os.path.join('weights', 'yolov7-seg-480-640.onnx'))
 
-# read images
-img = cv2.imread(os.path.join("samples", "bus.jpg"))
+def test_seg(image, model):
+    image = cv2.imread(image)
+        
+    # save model path
+    processed_img, mask_img, vis_img = model.predict(
+        image,
+        conf_thres=0.7,
+        iou_thres=0.45, 
+        classes=0 # [0,5,8] specific classes want to get. Default is None
+    )
+    
+    cv2.imwrite('processed_img.jpg', processed_img)
+    cv2.imwrite('mask_img.jpg', mask_img)
+    cv2.imwrite('vis_img.jpg', vis_img)
 
-# save model path
-mask_img, vis_img = model.inference(
-    img, 
-    saved_path='output',
-    conf_thres=0.7,
-    iou_thres=0.45, 
-    classes=0 # [0,5,8] specific classes want to get. Default is None
-)
+def test_detect(inp_path, opt_path, model):
+    image = cv2.imread(inp_path)
+    
+    bboxes, scores, _, _ = model.predict(image, det_thres=0.7, get_layer='face')
+    
+    if len(bboxes) > 0:
+        for xyxy, score in zip(bboxes, scores):
+            x1, y1, x2, y2 = xyxy.astype(int)
+            cv2.rectangle(image, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
+            cv2.putText(
+                image,
+                f"{score:.2f}",
+                (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6, (0, 255, 0), 2
+            )
+    
+    cv2.imwrite(opt_path, image)
+    
+
+if __name__ == '__main__':
+    # Detection
+    model = YoloDet('weights/yolov7-headface-v1.onnx')
+    test_detect('samples/aa1.jpg', 'output/aa1.jpg', model)
+    
+    ### Segmentation
+    model = YoloSeg('weights/yolov7-seg-480-640.onnx')
+    test_seg("samples/case.jpg", model)
 ```
 
 Find COCO classes 
@@ -45,32 +74,18 @@ CLASSES = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train',
          'hair drier', 'toothbrush']
 ```
 
-2. For Yolo Detection
+## 2. Human parsing
+Currently, we need ImageProcessor class from transformer for several steps. So. let install the transformer package
 
+``` pip install -q transformer ```
+
+And now, testing the performance with ONNX
 ```python
-image = cv2.imread(os.path.join('samples', 'bus.jpg'))
-    
-# load model
-model = DetectBase('weights/yolov7-tiny-v0.onnx')
+from src.parser.faceparser import ParserNet
 
+model = ParserNet('weights/model_quantized.onnx')
+img = cv2.imread('samples/testface2.jpg')[:,:,::-1]
+labels = model.predict(img)
 
-# Face & Body: det_thresh = 0.6
-# Head: det_thresh: 0.8
-
-bboxes, scores, labels, kpts = model.inference(image, det_thres=0.6, get_layer='face') # change the get layer 'body' || 'face' || 'head'
-
-if len(bboxes) > 0:
-    for xyxy, score in zip(bboxes, scores):
-        x1, y1, x2, y2 = xyxy.astype(int)
-        cv2.rectangle(image, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
-        cv2.putText(
-            image,
-            f"{score:.2f}",
-            (x1, y1 - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6, (0, 255, 0), 2
-        )
-
-cv2.imwrite('output/test.jpg', image)
+cv2.imwrite('result.jpg', labels)
 ```
-

@@ -1,32 +1,27 @@
-import os
 import cv2
-from src import DetectBase, YoloSeg
+from src.yolo.detnet import YoloDet
+from src.yolo.segnet import YoloSeg
 
 
-def test_seg():
-    # build model
-    model = YoloSeg(os.path.join('weights', 'yolov7-seg-480-640.onnx'))
-
-    # read images
-    img = cv2.imread(os.path.join("samples", "bus.jpg"))
-
+def test_seg(image, model):
+    image = cv2.imread(image)
+        
     # save model path
-    mask_img, vis_img = model.inference(
-        img, 
-        saved_path='output',
+    processed_img, mask_img, vis_img = model.predict(
+        image,
         conf_thres=0.7,
         iou_thres=0.45, 
         classes=0 # [0,5,8] specific classes want to get. Default is None
     )
-
-
-def test_detect():
-    image = cv2.imread(os.path.join('samples', 'bus.jpg'))
     
-    # load model
-    model = DetectBase('weights/yolov7-tiny-v0.onnx')
+    cv2.imwrite('processed_img.jpg', processed_img)
+    cv2.imwrite('mask_img.jpg', mask_img)
+    cv2.imwrite('vis_img.jpg', vis_img)
+
+def test_detect(inp_path, opt_path, model):
+    image = cv2.imread(inp_path)
     
-    bboxes, scores, labels, kpts = model.inference(image, det_thres=0.5, get_layer='head')
+    bboxes, scores, _, _ = model.predict(image, det_thres=0.7, get_layer='face')
     
     if len(bboxes) > 0:
         for xyxy, score in zip(bboxes, scores):
@@ -40,9 +35,15 @@ def test_detect():
                 0.6, (0, 255, 0), 2
             )
     
-    cv2.imwrite('output/test.jpg', image)
+    cv2.imwrite(opt_path, image)
     
 
 if __name__ == '__main__':
-    test_seg()
-    test_detect()
+    # Detection
+    model = YoloDet('weights/yolov7-headface-v1.onnx')
+    test_detect('samples/testface.jpg', 'output/testface.jpg', model)
+    
+    ### Segmentation
+    model = YoloSeg('weights/yolov7-seg-480-640.onnx')
+    test_seg("samples/bus.jpg", model)
+

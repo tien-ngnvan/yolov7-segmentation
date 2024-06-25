@@ -3,7 +3,6 @@ import time
 import numpy as np
 
 
-
 def sigmoid(x): 
     return 1.0/(1+np.exp(-x))
 
@@ -61,6 +60,41 @@ def process_mask(protos, masks_in, bboxes, shape, upsample=False):
         masks = np.transpose(masks, [2,0,1])
     return np.where(masks>0.5,masks,0)
 
+def scale_masks(img1_shape, masks, img0_shape, ratio_pad=None):
+    """
+    img1_shape: model input shape, [h, w]
+    img0_shape: origin pic shape, [h, w, 3]
+    masks: [h, w, num]
+    resize for the most time
+    """
+    # Rescale coords (xyxy) from img1_shape to img0_shape
+    if ratio_pad is None:  # calculate from img0_shape
+        gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
+        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
+    else:
+        gain = ratio_pad[0][0]
+        pad = ratio_pad[1]
+    tl_pad = int(pad[1]), int(pad[0])  # y, x
+    br_pad = int(img1_shape[0] - pad[1]), int(img1_shape[1] - pad[0])
+
+    if len(masks.shape) < 2:
+        raise ValueError(f'"len of masks shape" should be 2 or 3, but got {len(masks.shape)}')
+    # masks_h, masks_w, n
+    masks = masks[tl_pad[0]:br_pad[0], tl_pad[1]:br_pad[1]]
+    # 1, n, masks_h, masks_w
+    # masks = masks.permute(2, 0, 1).contiguous()[None, :]
+    # # shape = [1, n, masks_h, masks_w] after F.interpolate, so take first element
+    # masks = F.interpolate(masks, img0_shape[:2], mode='bilinear', align_corners=False)[0]
+    # masks = masks.permute(1, 2, 0).contiguous()
+    # masks_h, masks_w, n
+    masks = cv2.resize(masks, (img0_shape[1], img0_shape[0]))
+
+    # keepdim
+    if len(masks.shape) == 2:
+        masks = masks[:, :, None]
+
+    return masks
+
 def nms(bboxes, scores, threshold=0.5):
     x1 = bboxes[:, 0]
     y1 = bboxes[:, 1]
@@ -97,7 +131,6 @@ def non_max_suppression(
         classes=None,
         agnostic=False,
         multi_label=False,
-        labels=(),
         max_det=300,
         nm=32,  # number of masks
 ):
@@ -119,9 +152,7 @@ def non_max_suppression(
     max_wh = 7680  # (pixels) maximum box width and height
     max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
     time_limit = 0.5 + 0.05 * bs  # seconds to quit after
-    redundant = True  # require redundant detections
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
-    merge = False  # use merge-NMS
 
     t = time.time()
     mi = 5 + nc  # mask start index
@@ -227,11 +258,11 @@ def vis_result(image_3c, results, colorlist, CLASSES):
         if num != 0:
             print(f"Found {num} {CLASSES[i]}")
             
-    
+    # mask_img = scale_masks(image_3c.shape[2:], mask_img, im0.shape) 
     
     return image_3c, mask_img, vis_img
 
-def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
+def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), scaleup=True):
     # Resize and pad image while meeting stride-multiple constraints
     shape = im.shape[:2]  # current shape [height, width]
     if isinstance(new_shape, int):
@@ -243,15 +274,8 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
         r = min(r, 1.0)
 
     # Compute padding
-    ratio = r, r  # width, height ratios
     new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
-    if auto:  # minimum rectangle
-        dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
-    elif scaleFill:  # stretch
-        dw, dh = 0.0, 0.0
-        new_unpad = (new_shape[1], new_shape[0])
-        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
 
     dw /= 2  # divide padding into 2 sides
     dh /= 2
@@ -261,4 +285,4 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
-    return im, ratio, (dw, dh)
+    return im, r, (dw, dh)
