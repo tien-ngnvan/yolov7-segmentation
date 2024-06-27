@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import cv2
 import numpy as np
 from src import BaseInference
-from src.yolo.utils import letterbox
+from src.yolo.yolo_utils import letterbox
 
   
 class YoloDet(BaseInference):
