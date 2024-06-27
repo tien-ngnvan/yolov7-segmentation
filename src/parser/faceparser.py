@@ -7,7 +7,7 @@ import numpy as np
 from transformers import SegformerImageProcessor
 
 from src import BaseInference
-
+from src.parser.parser_utils import interpolate
 
 
 PARSER_COLORS = [
@@ -33,12 +33,21 @@ class ParserNet(BaseInference):
             self.processor = processor
             
     def predict(self, image: np.array):
-        h, w, _ = image.shape
         inp_tensor = self.preprocess(image)
 
-        logits = self.sess.run(self.output_names, dict(zip(self.input_names, inp_tensor)))
-        logits = logits[0].squeeze().argmax(0)
-        logits = self.postprocess(logits, org_img=(w,h))
+        logits = self.sess.run(self.output_names, dict(zip(self.input_names, inp_tensor)))[0]
+        logits = logits.squeeze().transpose(1, 2, 0)
+        
+        # resize output to match input image dimensions
+        logits = interpolate(logits,
+                                    size=image.shape[:-1], # H x W
+                                    mode='bilinear',
+                                    align_corners=True)
+        
+        logits = np.argmax(logits, axis=2)
+        
+        # postprocess image color
+        logits = self.postprocess(logits)
         
         return logits
 
@@ -48,10 +57,8 @@ class ParserNet(BaseInference):
         
         return tensor
     
-    def postprocess(self, parsing_anno, org_img):
+    def postprocess(self, parsing_anno):
         vis_parsing_anno = parsing_anno.copy().astype(np.uint8)
-        vis_parsing_anno = cv2.resize(vis_parsing_anno, org_img, interpolation=cv2.INTER_NEAREST)
-        
         vis_parsing_anno_color = np.zeros((vis_parsing_anno.shape[0], vis_parsing_anno.shape[1], 3)) + 255
 
         num_of_class = np.max(vis_parsing_anno)
@@ -71,5 +78,3 @@ if __name__ == '__main__':
     labels = model.predict(img)
     
     cv2.imwrite('result.jpg', labels)
-    
-    print("Type: ", labels.shape)
